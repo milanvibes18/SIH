@@ -1,0 +1,1800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>From Blueprint to Reality: GAN-Powered 2D-to-3D Model Generation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3e 25%, #2a2a5e 75%, #3a3a7e 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+            color: white;
+            position: relative;
+        }
+
+        /* Enhanced background with animated particles */
+        .bg-particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .particle {
+            position: absolute;
+            width: 3px;
+            height: 3px;
+            background: radial-gradient(circle, #00d4ff, transparent);
+            border-radius: 50%;
+            animation: float 12s ease-in-out infinite;
+            box-shadow: 0 0 10px #00d4ff;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0) translateX(0) scale(1); opacity: 0.1; }
+            25% { transform: translateY(-40px) translateX(15px) scale(1.2); opacity: 0.4; }
+            50% { transform: translateY(-20px) translateX(-10px) scale(0.8); opacity: 0.6; }
+            75% { transform: translateY(-50px) translateX(5px) scale(1.1); opacity: 0.3; }
+        }
+
+        .container {
+            width: 95%;
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(10, 10, 26, 0.6);
+            backdrop-filter: blur(25px);
+            border-radius: 25px;
+            border: 2px solid;
+            border-image: linear-gradient(135deg, #00d4ff, #a855f7, #ec4899, #00d4ff) 1;
+            padding: 30px;
+            margin-top: 20px;
+            margin-bottom: 20px;
+            box-shadow: 
+                0 0 30px rgba(0, 212, 255, 0.3),
+                0 0 60px rgba(168, 85, 247, 0.2),
+                inset 0 0 30px rgba(255, 255, 255, 0.05);
+            animation: containerGlow 4s ease-in-out infinite alternate;
+            position: relative;
+            z-index: 1;
+        }
+
+        @keyframes containerGlow {
+            0% { box-shadow: 0 0 30px rgba(0, 212, 255, 0.3), 0 0 60px rgba(168, 85, 247, 0.2), inset 0 0 30px rgba(255, 255, 255, 0.05); }
+            100% { box-shadow: 0 0 50px rgba(0, 212, 255, 0.5), 0 0 80px rgba(168, 85, 247, 0.3), inset 0 0 40px rgba(255, 255, 255, 0.1); }
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding: 0 10px;
+        }
+
+        .logo {
+            font-size: 32px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 0 0 20px rgba(0, 212, 255, 0.8);
+            animation: logoGlow 3s ease-in-out infinite alternate;
+        }
+
+        @keyframes logoGlow {
+            0% { text-shadow: 0 0 20px rgba(0, 212, 255, 0.8); }
+            100% { text-shadow: 0 0 30px rgba(0, 212, 255, 1), 0 0 50px rgba(168, 85, 247, 0.6); }
+        }
+
+        .nav-menu {
+            display: flex;
+            gap: 40px;
+            list-style: none;
+        }
+
+        .nav-menu li {
+            color: rgba(255, 255, 255, 0.7);
+            cursor: pointer;
+            transition: all 0.3s;
+            padding: 12px 20px;
+            border-radius: 12px;
+            border: 1px solid transparent;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .nav-menu li::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.3), transparent);
+            transition: left 0.5s;
+        }
+
+        .nav-menu li:hover::before {
+            left: 100%;
+        }
+
+        .nav-menu li:hover {
+            color: white;
+            background: rgba(0, 212, 255, 0.1);
+            border-color: rgba(0, 212, 255, 0.5);
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .nav-menu li.active {
+            background: rgba(0, 212, 255, 0.2);
+            color: white;
+            border-color: rgba(0, 212, 255, 0.6);
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 15px;
+        }
+
+        .btn {
+            padding: 12px 28px;
+            border-radius: 12px;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: white;
+            border: 2px solid rgba(0, 212, 255, 0.5);
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.3);
+        }
+
+        .btn-outline:hover {
+            background: rgba(0, 212, 255, 0.1);
+            border-color: rgba(0, 212, 255, 0.8);
+            box-shadow: 0 0 25px rgba(0, 212, 255, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #00d4ff, #a855f7);
+            color: white;
+            border: 1px solid rgba(0, 212, 255, 0.5);
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.4);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 0 30px rgba(0, 212, 255, 0.6);
+            background: linear-gradient(135deg, #00c4ef, #9555e7);
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 60px;
+            align-items: center;
+            margin-bottom: 40px;
+        }
+
+        .content-left h1 {
+            font-size: 48px;
+            color: white;
+            margin-bottom: 25px;
+            line-height: 1.2;
+            text-shadow: 0 0 30px rgba(0, 212, 255, 0.5);
+            animation: titleGlow 4s ease-in-out infinite alternate;
+            background: linear-gradient(135deg, #00d4ff, #a855f7, #ec4899);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        @keyframes titleGlow {
+            0% { text-shadow: 0 0 30px rgba(0, 212, 255, 0.5); }
+            100% { text-shadow: 0 0 40px rgba(0, 212, 255, 0.8), 0 0 60px rgba(168, 85, 247, 0.4); }
+        }
+
+        .content-left p {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 18px;
+            margin-bottom: 35px;
+            line-height: 1.7;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .upload-btn {
+            background: linear-gradient(135deg, #00d4ff, #a855f7);
+            padding: 15px 35px;
+            font-size: 16px;
+            box-shadow: 0 0 25px rgba(0, 212, 255, 0.4);
+        }
+
+        .preview-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(0, 212, 255, 0.5);
+            padding: 15px 35px;
+            font-size: 16px;
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.3);
+        }
+
+        /* Enhanced 3D Scene Container */
+        .scene-container {
+            position: relative;
+            height: 450px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            perspective: 1200px;
+            border: 2px solid;
+            border-image: linear-gradient(135deg, #00d4ff, #a855f7, #ec4899, #00d4ff) 1;
+            border-radius: 20px;
+            background: radial-gradient(ellipse at center, rgba(0, 212, 255, 0.1), transparent);
+            box-shadow: 
+                0 0 30px rgba(0, 212, 255, 0.4),
+                inset 0 0 30px rgba(0, 212, 255, 0.1);
+            animation: sceneGlow 5s ease-in-out infinite alternate;
+        }
+
+        @keyframes sceneGlow {
+            0% { box-shadow: 0 0 30px rgba(0, 212, 255, 0.4), inset 0 0 30px rgba(0, 212, 255, 0.1); }
+            100% { box-shadow: 0 0 50px rgba(0, 212, 255, 0.6), inset 0 0 40px rgba(0, 212, 255, 0.2); }
+        }
+
+        .cube-scene {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            transform-style: preserve-3d;
+            animation: rotate3D 25s linear infinite;
+        }
+
+        @keyframes rotate3D {
+            0% { transform: rotateX(-15deg) rotateY(0deg) rotateZ(0deg); }
+            100% { transform: rotateX(-15deg) rotateY(360deg) rotateZ(5deg); }
+        }
+
+        .wireframe-cube {
+            width: 250px;
+            height: 250px;
+            position: relative;
+            transform-style: preserve-3d;
+        }
+
+        .wireframe-face {
+            position: absolute;
+            width: 250px;
+            height: 250px;
+            border: 3px solid #00d4ff;
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.08), rgba(168, 85, 247, 0.08));
+            backdrop-filter: blur(8px);
+            box-shadow: 
+                0 0 20px rgba(0, 212, 255, 0.5),
+                inset 0 0 20px rgba(0, 212, 255, 0.1);
+        }
+
+        .wireframe-face.front { transform: translateZ(125px); }
+        .wireframe-face.back { transform: rotateY(180deg) translateZ(125px); }
+        .wireframe-face.left { transform: rotateY(-90deg) translateZ(125px); }
+        .wireframe-face.right { transform: rotateY(90deg) translateZ(125px); }
+        .wireframe-face.top { transform: rotateX(90deg) translateZ(125px); }
+        .wireframe-face.bottom { transform: rotateX(-90deg) translateZ(125px); }
+
+        /* Enhanced gradient cube */
+        .gradient-cube {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            top: 65px;
+            left: 65px;
+            transform-style: preserve-3d;
+        }
+
+        .gradient-face {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+        }
+
+        .gradient-face.front {
+            background: linear-gradient(135deg, #fbbf24, #f59e0b);
+            transform: translateZ(60px);
+        }
+        .gradient-face.back {
+            background: linear-gradient(135deg, #ec4899, #be185d);
+            transform: rotateY(180deg) translateZ(60px);
+        }
+        .gradient-face.left {
+            background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+            transform: rotateY(-90deg) translateZ(60px);
+        }
+        .gradient-face.right {
+            background: linear-gradient(135deg, #06b6d4, #0891b2);
+            transform: rotateY(90deg) translateZ(60px);
+        }
+        .gradient-face.top {
+            background: linear-gradient(135deg, #10b981, #059669);
+            transform: rotateX(90deg) translateZ(60px);
+        }
+        .gradient-face.bottom {
+            background: linear-gradient(135deg, #f97316, #ea580c);
+            transform: rotateX(-90deg) translateZ(60px);
+        }
+
+        /* Enhanced orbital rings with neon effect */
+        .orbit-ring {
+            position: absolute;
+            border: 2px solid rgba(0, 212, 255, 0.6);
+            border-radius: 50%;
+            animation: spin 18s linear infinite;
+            box-shadow: 
+                0 0 20px rgba(0, 212, 255, 0.5),
+                inset 0 0 20px rgba(0, 212, 255, 0.2);
+        }
+
+        .orbit-1 {
+            width: 400px;
+            height: 400px;
+            top: -75px;
+            left: -75px;
+        }
+
+        .orbit-2 {
+            width: 350px;
+            height: 350px;
+            top: -50px;
+            left: -50px;
+            animation-direction: reverse;
+            animation-duration: 15s;
+            border-color: rgba(168, 85, 247, 0.6);
+            box-shadow: 
+                0 0 20px rgba(168, 85, 247, 0.5),
+                inset 0 0 20px rgba(168, 85, 247, 0.2);
+        }
+
+        @keyframes spin {
+            from { transform: rotateZ(0deg); }
+            to { transform: rotateZ(360deg); }
+        }
+
+        /* Enhanced floating elements with glow */
+        .floating-element {
+            position: absolute;
+            border-radius: 50%;
+            animation: floatAround 10s ease-in-out infinite;
+            box-shadow: 0 0 15px currentColor;
+        }
+
+        .element-1 {
+            width: 12px;
+            height: 12px;
+            background: radial-gradient(circle, #fbbf24, #f59e0b);
+            top: 10%;
+            left: 20%;
+            animation-delay: 0s;
+        }
+
+        .element-2 {
+            width: 8px;
+            height: 8px;
+            background: radial-gradient(circle, #06b6d4, #0891b2);
+            top: 70%;
+            right: 10%;
+            animation-delay: 2.5s;
+        }
+
+        .element-3 {
+            width: 10px;
+            height: 10px;
+            background: radial-gradient(circle, #ec4899, #be185d);
+            bottom: 20%;
+            left: 15%;
+            animation-delay: 5s;
+        }
+
+        .element-4 {
+            width: 6px;
+            height: 6px;
+            background: radial-gradient(circle, #8b5cf6, #7c3aed);
+            top: 30%;
+            right: 25%;
+            animation-delay: 7.5s;
+        }
+
+        @keyframes floatAround {
+            0%, 100% { transform: translateY(0) scale(1) rotate(0deg); opacity: 0.8; }
+            25% { transform: translateY(-25px) scale(1.3) rotate(90deg); opacity: 1; }
+            50% { transform: translateY(-15px) scale(0.7) rotate(180deg); opacity: 0.6; }
+            75% { transform: translateY(-30px) scale(1.2) rotate(270deg); opacity: 1; }
+        }
+
+        /* Enhanced Toolbar with neon effects */
+        .toolbar {
+            background: rgba(10, 10, 26, 0.8);
+            backdrop-filter: blur(25px);
+            border-radius: 20px;
+            border: 2px solid rgba(0, 212, 255, 0.3);
+            padding: 20px 30px;
+            display: flex;
+            align-items: center;
+            gap: 30px;
+            margin-bottom: 30px;
+            box-shadow: 
+                0 0 25px rgba(0, 212, 255, 0.3),
+                inset 0 0 15px rgba(0, 212, 255, 0.1);
+        }
+
+        .toolbar-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: rgba(255, 255, 255, 0.7);
+            cursor: pointer;
+            transition: all 0.3s;
+            padding: 10px 18px;
+            border-radius: 12px;
+            border: 1px solid transparent;
+        }
+
+        .toolbar-item:hover {
+            color: white;
+            background: rgba(0, 212, 255, 0.1);
+            border-color: rgba(0, 212, 255, 0.5);
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .toolbar-item.active {
+            color: #00d4ff;
+            background: rgba(0, 212, 255, 0.15);
+            border-color: rgba(0, 212, 255, 0.6);
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+        }
+
+        .dropdown {
+            background: rgba(10, 10, 26, 0.8);
+            border: 2px solid rgba(0, 212, 255, 0.4);
+            color: white;
+            padding: 10px 18px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.3);
+        }
+
+        .dropdown:hover {
+            background: rgba(0, 212, 255, 0.1);
+            border-color: rgba(0, 212, 255, 0.7);
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+        }
+
+        /* Enhanced bottom section */
+        .bottom-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr 2fr;
+            gap: 25px;
+            margin-top: 30px;
+        }
+
+        .model-card {
+            background: rgba(10, 10, 26, 0.6);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            border: 2px solid rgba(0, 212, 255, 0.3);
+            padding: 25px;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 
+                0 0 20px rgba(0, 212, 255, 0.2),
+                inset 0 0 20px rgba(0, 212, 255, 0.05);
+        }
+
+        .model-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.2), transparent);
+            transition: left 0.6s;
+        }
+
+        .model-card:hover::before {
+            left: 100%;
+        }
+
+        .model-card:hover {
+            transform: translateY(-10px) scale(1.03);
+            background: rgba(10, 10, 26, 0.8);
+            border-color: rgba(0, 212, 255, 0.7);
+            box-shadow: 
+                0 20px 40px rgba(0, 212, 255, 0.4),
+                0 0 30px rgba(0, 212, 255, 0.6),
+                inset 0 0 30px rgba(0, 212, 255, 0.1);
+        }
+
+        .model-card.selected {
+            background: rgba(0, 212, 255, 0.15);
+            border-color: rgba(0, 212, 255, 0.8);
+            box-shadow: 
+                0 0 40px rgba(0, 212, 255, 0.8),
+                inset 0 0 25px rgba(0, 212, 255, 0.2);
+        }
+
+        /* SIGNIFICANTLY ENHANCED 3D Chair Models */
+        .chair-model {
+            width: 100%;
+            height: 200px;
+            position: relative;
+            perspective: 1000px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 15px;
+            margin-bottom: 15px;
+            overflow: hidden;
+            background: radial-gradient(ellipse at center, rgba(0, 212, 255, 0.15), rgba(168, 85, 247, 0.15));
+            border: 2px solid rgba(0, 212, 255, 0.4);
+            box-shadow: 
+                0 0 25px rgba(0, 212, 255, 0.4),
+                inset 0 0 25px rgba(0, 212, 255, 0.1);
+        }
+
+        .chair-3d {
+            width: 140px;
+            height: 160px;
+            transform-style: preserve-3d;
+            animation: rotateChair 15s linear infinite;
+            position: relative;
+            filter: drop-shadow(0 10px 20px rgba(0, 212, 255, 0.3));
+        }
+
+        @keyframes rotateChair {
+            0% { transform: rotateY(0deg) rotateX(-15deg) scale(1.1); }
+            100% { transform: rotateY(360deg) rotateX(-15deg) scale(1.1); }
+        }
+
+        /* MUCH MORE VISIBLE Office Chair Styling */
+        .office-chair .chair-seat {
+            position: absolute;
+            width: 90px;
+            height: 70px;
+            background: linear-gradient(135deg, #2a2a3e 0%, #1a1a2e 50%, #0a0a1e 100%);
+            border: 2px solid rgba(0, 212, 255, 0.6);
+            border-radius: 15px;
+            top: 65px;
+            left: 25px;
+            transform: rotateX(-8deg);
+            box-shadow: 
+                0 15px 30px rgba(0, 0, 0, 0.5),
+                0 0 20px rgba(0, 212, 255, 0.4),
+                inset 0 5px 10px rgba(255, 255, 255, 0.1);
+        }
+
+        .office-chair .chair-seat::before {
+            content: '';
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            bottom: 10px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.2), rgba(168, 85, 247, 0.2));
+        }
+
+        .office-chair .chair-back {
+            position: absolute;
+            width: 80px;
+            height: 95px;
+            background: linear-gradient(135deg, #2a2a3e 0%, #1a1a2e 50%, #0a0a1e 100%);
+            border: 2px solid rgba(0, 212, 255, 0.6);
+            border-radius: 15px 15px 6px 6px;
+            top: 5px;
+            left: 30px;
+            transform: rotateX(12deg);
+            box-shadow: 
+                0 10px 25px rgba(0, 0, 0, 0.4),
+                0 0 20px rgba(0, 212, 255, 0.4),
+                inset 0 3px 8px rgba(255, 255, 255, 0.15);
+        }
+
+        .office-chair .chair-back::before {
+            content: '';
+            position: absolute;
+            top: 15px;
+            left: 10px;
+            right: 10px;
+            bottom: 15px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.3), rgba(168, 85, 247, 0.3));
+        }
+
+        .office-chair .chair-base {
+            position: absolute;
+            width: 120px;
+            height: 12px;
+            background: linear-gradient(135deg, #0a0a1e, #2a2a3e);
+            border: 1px solid rgba(0, 212, 255, 0.5);
+            border-radius: 60px;
+            bottom: 8px;
+            left: 10px;
+            transform: rotateX(75deg);
+            box-shadow: 
+                0 5px 15px rgba(0, 0, 0, 0.4),
+                0 0 15px rgba(0, 212, 255, 0.3);
+        }
+
+        .office-chair .chair-arm {
+            position: absolute;
+            width: 45px;
+            height: 15px;
+            background: linear-gradient(135deg, #2a2a3e, #1a1a2e);
+            border: 1px solid rgba(0, 212, 255, 0.5);
+            border-radius: 8px;
+            top: 75px;
+            transform: rotateZ(90deg);
+            box-shadow: 
+                0 5px 12px rgba(0, 0, 0, 0.3),
+                0 0 12px rgba(0, 212, 255, 0.3);
+        }
+
+        .office-chair .chair-arm.left { left: -8px; }
+        .office-chair .chair-arm.right { right: -8px; }
+
+        /* MUCH MORE VISIBLE Armchair Styling */
+        .armchair .armchair-seat {
+            position: absolute;
+            width: 95px;
+            height: 75px;
+            background: linear-gradient(135deg, #4a2c5a 0%, #3a1c4a 50%, #2a0c3a 100%);
+            border: 2px solid rgba(168, 85, 247, 0.7);
+            border-radius: 18px;
+            top: 60px;
+            left: 22px;
+            transform: rotateX(-5deg);
+            box-shadow: 
+                0 20px 35px rgba(0, 0, 0, 0.5),
+                0 0 25px rgba(168, 85, 247, 0.5),
+                inset 0 5px 12px rgba(255, 255, 255, 0.1);
+        }
+
+        .armchair .armchair-seat::before {
+            content: '';
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            right: 12px;
+            bottom: 12px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, rgba(168, 85, 247, 0.3), rgba(236, 72, 153, 0.3));
+        }
+
+        .armchair .armchair-back {
+            position: absolute;
+            width: 95px;
+            height: 100px;
+            background: linear-gradient(135deg, #4a2c5a 0%, #3a1c4a 50%, #2a0c3a 100%);
+            border: 2px solid rgba(168, 85, 247, 0.7);
+            border-radius: 22px 22px 8px 8px;
+            top: 0;
+            left: 22px;
+            transform: rotateX(8deg);
+            box-shadow: 
+                0 15px 30px rgba(0, 0, 0, 0.4),
+                0 0 25px rgba(168, 85, 247, 0.5),
+                inset 0 4px 10px rgba(255, 255, 255, 0.15);
+        }
+
+        .armchair .armchair-back::before {
+            content: '';
+            position: absolute;
+            top: 15px;
+            left: 12px;
+            right: 12px;
+            bottom: 20px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, rgba(168, 85, 247, 0.4), rgba(236, 72, 153, 0.4));
+        }
+
+        .armchair .armchair-base {
+            position: absolute;
+            width: 125px;
+            height: 14px;
+            background: linear-gradient(135deg, #2a0c3a, #4a2c5a);
+            border: 1px solid rgba(168, 85, 247, 0.6);
+            border-radius: 60px;
+            bottom: 5px;
+            left: 7px;
+            transform: rotateX(65deg);
+            box-shadow: 
+                0 8px 20px rgba(0, 0, 0, 0.4),
+                0 0 18px rgba(168, 85, 247, 0.4);
+        }
+
+        .armchair .armchair-arm {
+            position: absolute;
+            width: 25px;
+            height: 60px;
+            background: linear-gradient(135deg, #4a2c5a, #3a1c4a);
+            border: 2px solid rgba(168, 85, 247, 0.6);
+            border-radius: 12px;
+            top: 65px;
+            box-shadow: 
+                0 8px 18px rgba(0, 0, 0, 0.3),
+                0 0 15px rgba(168, 85, 247, 0.4);
+        }
+
+        .armchair .armchair-arm.left { left: -8px; }
+        .armchair .armchair-arm.right { right: -8px; }
+
+        .model-info h3 {
+            color: white;
+            font-size: 18px;
+            margin-bottom: 8px;
+            font-weight: 600;
+            text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+        }
+
+        .model-info p {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .model-stats {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 12px;
+            font-size: 12px;
+            color: rgba(0, 212, 255, 0.8);
+            font-weight: 500;
+        }
+
+        /* Enhanced Shape Gallery */
+        .shape-gallery {
+            background: rgba(10, 10, 26, 0.6);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            border: 2px solid rgba(0, 212, 255, 0.3);
+            padding: 25px;
+            box-shadow: 
+                0 0 25px rgba(0, 212, 255, 0.2),
+                inset 0 0 20px rgba(0, 212, 255, 0.05);
+        }
+
+        .gallery-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .gallery-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: white;
+            text-shadow: 0 0 15px rgba(0, 212, 255, 0.6);
+        }
+
+        .view-toggle {
+            display: flex;
+            gap: 10px;
+        }
+
+        .toggle-btn {
+            padding: 8px 16px;
+            background: rgba(10, 10, 26, 0.8);
+            border: 2px solid rgba(0, 212, 255, 0.4);
+            color: white;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 12px;
+            font-weight: 500;
+            box-shadow: 0 0 12px rgba(0, 212, 255, 0.3);
+        }
+
+        .toggle-btn.active {
+            background: rgba(0, 212, 255, 0.2);
+            border-color: rgba(0, 212, 255, 0.7);
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+        }
+
+        .toggle-btn:hover {
+            background: rgba(0, 212, 255, 0.15);
+            border-color: rgba(0, 212, 255, 0.6);
+            transform: translateY(-1px);
+        }
+
+        .shapes-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 18px;
+            margin-bottom: 25px;
+        }
+
+        .shape-item {
+            background: rgba(10, 10, 26, 0.6);
+            border: 2px solid rgba(0, 212, 255, 0.3);
+            border-radius: 15px;
+            padding: 18px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.2);
+        }
+
+        .shape-item:hover {
+            background: rgba(0, 212, 255, 0.1);
+            border-color: rgba(0, 212, 255, 0.6);
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 
+                0 15px 30px rgba(0, 0, 0, 0.3),
+                0 0 25px rgba(0, 212, 255, 0.5);
+        }
+
+        .shape-item.selected {
+            background: rgba(0, 212, 255, 0.2);
+            border-color: rgba(0, 212, 255, 0.8);
+            transform: translateY(-5px) scale(1.05);
+            box-shadow: 
+                0 0 30px rgba(0, 212, 255, 0.7),
+                inset 0 0 15px rgba(0, 212, 255, 0.2);
+        }
+
+        .shape-icon {
+            width: 50px;
+            height: 50px;
+            margin: 0 auto 12px;
+            background: linear-gradient(135deg, #00d4ff, #a855f7);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.4);
+        }
+
+        .shape-name {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.9);
+            font-weight: 500;
+        }
+
+        .controls-section {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        .control-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .control-btn {
+            padding: 10px 18px;
+            background: rgba(10, 10, 26, 0.8);
+            border: 2px solid rgba(0, 212, 255, 0.3);
+            color: white;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 12px;
+            font-weight: 500;
+            box-shadow: 0 0 12px rgba(0, 212, 255, 0.2);
+        }
+
+        .control-btn:hover {
+            background: rgba(0, 212, 255, 0.1);
+            border-color: rgba(0, 212, 255, 0.6);
+            box-shadow: 0 0 18px rgba(0, 212, 255, 0.4);
+        }
+
+        .control-btn.active {
+            background: rgba(0, 212, 255, 0.2);
+            border-color: rgba(0, 212, 255, 0.7);
+            box-shadow: 0 0 25px rgba(0, 212, 255, 0.5);
+        }
+
+        .tags-section {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .tag {
+            background: rgba(0, 212, 255, 0.15);
+            color: #00d4ff;
+            padding: 6px 14px;
+            border-radius: 15px;
+            font-size: 11px;
+            font-weight: 500;
+            border: 1px solid rgba(0, 212, 255, 0.4);
+            box-shadow: 0 0 12px rgba(0, 212, 255, 0.3);
+        }
+
+        .toast {
+            position: fixed;
+            top: 25px;
+            right: 25px;
+            background: rgba(10, 10, 26, 0.9);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 15px;
+            backdrop-filter: blur(15px);
+            border: 2px solid rgba(0, 212, 255, 0.5);
+            z-index: 1000;
+            font-size: 14px;
+            font-weight: 500;
+            display: none;
+            opacity: 0;
+            transform: translateY(-20px);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 
+                0 15px 35px rgba(0, 0, 0, 0.4),
+                0 0 25px rgba(0, 212, 255, 0.5);
+        }
+
+        .toast.show {
+            display: block;
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Lens flare effects */
+        .scene-container::before {
+            content: '';
+            position: absolute;
+            top: 20%;
+            left: 30%;
+            width: 100px;
+            height: 100px;
+            background: radial-gradient(circle, rgba(0, 212, 255, 0.3), transparent 70%);
+            border-radius: 50%;
+            animation: lensFlare 6s ease-in-out infinite;
+            pointer-events: none;
+        }
+
+        .scene-container::after {
+            content: '';
+            position: absolute;
+            top: 60%;
+            right: 25%;
+            width: 60px;
+            height: 60px;
+            background: radial-gradient(circle, rgba(168, 85, 247, 0.4), transparent 70%);
+            border-radius: 50%;
+            animation: lensFlare 8s ease-in-out infinite reverse;
+            pointer-events: none;
+        }
+
+        @keyframes lensFlare {
+            0%, 100% { opacity: 0.2; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(1.2); }
+        }
+
+        /* Enhanced responsive design */
+        @media (max-width: 1200px) {
+            .main-content {
+                grid-template-columns: 1fr;
+                gap: 40px;
+            }
+
+            .bottom-section {
+                grid-template-columns: 1fr;
+            }
+
+            .content-left h1 {
+                font-size: 40px;
+            }
+
+            .shapes-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+                margin: 10px;
+                width: 98%;
+            }
+
+            .header {
+                flex-direction: column;
+                gap: 20px;
+            }
+
+            .nav-menu {
+                gap: 20px;
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+
+            .toolbar {
+                flex-wrap: wrap;
+                gap: 15px;
+            }
+
+            .content-left h1 {
+                font-size: 32px;
+            }
+
+            .scene-container {
+                height: 350px;
+            }
+
+            .cube-scene {
+                width: 250px;
+                height: 250px;
+            }
+        }
+
+        /* Loading animation */
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .loading {
+            animation: pulse 2s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-particles" id="particles"></div>
+
+    <div class="container">
+        <div class="header">
+            <div class="logo">SIH</div>
+            <ul class="nav-menu">
+                <li onclick="highlightMenu(this)">Furniture</li>
+                <li onclick="highlightMenu(this)">Vehicles</li>
+                <li onclick="highlightMenu(this)">Objects</li>
+                <li onclick="highlightMenu(this)">AI Models</li>
+            </ul>
+            <div class="header-buttons">
+                <button class="btn btn-outline" onclick="showToast('Viewer Mode Activated')">Viewer</button>
+                <button class="btn btn-primary" onclick="showToast('Version Control Feature')">Version</button>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="content-left">
+                <h1>From Blueprint to Reality: GAN-Powered 2D-to-3D Model Generation</h1>
+                <p>Advanced TensorFlow-powered system leveraging Generative Adversarial Networks to convert 2D images and sketches into detailed 3D models with unprecedented precision and creativity.</p>
+                <div class="action-buttons">
+                    <button class="btn btn-primary upload-btn" onclick="triggerUpload()">Upload</button>
+                    <button class="btn btn-outline preview-btn" onclick="togglePreview()">Preview</button>
+                </div>
+            </div>
+
+            <div class="scene-container">
+                <div class="cube-scene">
+                    <div class="wireframe-cube">
+                        <div class="wireframe-face front"></div>
+                        <div class="wireframe-face back"></div>
+                        <div class="wireframe-face left"></div>
+                        <div class="wireframe-face right"></div>
+                        <div class="wireframe-face top"></div>
+                        <div class="wireframe-face bottom"></div>
+
+                        <div class="gradient-cube">
+                            <div class="gradient-face front"></div>
+                            <div class="gradient-face back"></div>
+                            <div class="gradient-face left"></div>
+                            <div class="gradient-face right"></div>
+                            <div class="gradient-face top"></div>
+                            <div class="gradient-face bottom"></div>
+                        </div>
+                    </div>
+
+                    <div class="orbit-ring orbit-1"></div>
+                    <div class="orbit-ring orbit-2"></div>
+
+                    <div class="floating-element element-1"></div>
+                    <div class="floating-element element-2"></div>
+                    <div class="floating-element element-3"></div>
+                    <div class="floating-element element-4"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Enhanced Toolbar section -->
+        <div class="toolbar">
+            <div class="toolbar-item active" onclick="setActiveToolbar(this)">
+                <div class="toolbar-icon">🎨</div>
+            </div>
+            <select class="dropdown" onchange="handleDropdownChange(this)">
+                <option>GAN Training</option>
+                <option>Advanced Render</option>
+                <option>TensorFlow Mode</option>
+                <option>Professional</option>
+            </select>
+            <div class="toolbar-item" onclick="setActiveToolbar(this)">
+                <div class="toolbar-icon">⚙️</div>
+            </div>
+            <div class="toolbar-item" onclick="setActiveToolbar(this)">
+                <div class="toolbar-icon">🔄</div>
+            </div>
+            <div class="toolbar-item" onclick="setActiveToolbar(this)">
+                <span>3D</span>
+            </div>
+            <div style="margin-left: auto;"></div>
+            <div class="toolbar-item" onclick="setActiveToolbar(this)">
+                <span>📊 Analytics</span>
+            </div>
+            <div class="toolbar-item" onclick="setActiveToolbar(this)">
+                <div class="toolbar-icon">⚡</div>
+            </div>
+        </div>
+
+        <!-- Enhanced bottom section with models and shapes -->
+        <div class="bottom-section">
+            <!-- Office Chair Model -->
+            <div class="model-card" onclick="selectModel(this, 'Neural Workspace')">
+                <div class="chair-model">
+                    <div class="chair-3d office-chair">
+                        <div class="chair-back"></div>
+                        <div class="chair-seat"></div>
+                        <div class="chair-arm left"></div>
+                        <div class="chair-arm right"></div>
+                        <div class="chair-base"></div>
+                    </div>
+                </div>
+                <div class="model-info">
+                    <h3>Neural Workspace</h3>
+                    <p>Executive Office Chair</p>
+                    <div class="model-stats">
+                        <span>Vertices: 4.2k</span>
+                        <span>Size: 2.1MB</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Armchair Model -->
+            <div class="model-card" onclick="selectModel(this, 'Comfort Genesis')">
+                <div class="chair-model">
+                    <div class="chair-3d armchair">
+                        <div class="armchair-back"></div>
+                        <div class="armchair-seat"></div>
+                        <div class="armchair-arm left"></div>
+                        <div class="armchair-arm right"></div>
+                        <div class="armchair-base"></div>
+                    </div>
+                </div>
+                <div class="model-info">
+                    <h3>Comfort Genesis</h3>
+                    <p>Premium Lounge Chair</p>
+                    <div class="model-stats">
+                        <span>Vertices: 5.8k</span>
+                        <span>Size: 3.4MB</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Enhanced Shape Gallery -->
+            <div class="shape-gallery">
+                <div class="gallery-header">
+                    <div class="gallery-title">3D Generation Pipeline</div>
+                    <div class="view-toggle">
+                        <button class="toggle-btn active" onclick="toggleView(this, 'grid')">📊 Grid View</button>
+                        <button class="toggle-btn" onclick="toggleView(this, 'list')">⚡ List View</button>
+                    </div>
+                </div>
+
+                <div class="shapes-grid">
+                    <div class="shape-item" onclick="selectShape(this, 'wireframe')">
+                        <div class="shape-icon">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                                <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                                <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                                <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                            </svg>
+                        </div>
+                        <div class="shape-name">Wireframe</div>
+                    </div>
+                    <div class="shape-item" onclick="selectShape(this, 'solid')">
+                        <div class="shape-icon">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 2L2 7L12 12L22 7L12 2Z"/>
+                                <path d="M2 17L12 22L22 17L12 12L2 17Z"/>
+                                <path d="M2 12L12 17L22 12L12 7L2 12Z"/>
+                            </svg>
+                        </div>
+                        <div class="shape-name">Solid</div>
+                    </div>
+                    <div class="shape-item" onclick="selectShape(this, 'textured')">
+                        <div class="shape-icon">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                                <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2" fill="none"/>
+                                <rect x="7" y="7" width="10" height="10" rx="1" stroke="currentColor" stroke-width="1.5" fill="currentColor" opacity="0.3"/>
+                            </svg>
+                        </div>
+                        <div class="shape-name">Textured</div>
+                    </div>
+                    <div class="shape-item" onclick="selectShape(this, 'neural')">
+                        <div class="shape-icon">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                                <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" fill="currentColor" opacity="0.2"/>
+                                <circle cx="12" cy="6" r="2" stroke="currentColor" stroke-width="1.5" fill="currentColor" opacity="0.4"/>
+                                <circle cx="6" cy="18" r="2" stroke="currentColor" stroke-width="1.5" fill="currentColor" opacity="0.4"/>
+                                <circle cx="18" cy="18" r="2" stroke="currentColor" stroke-width="1.5" fill="currentColor" opacity="0.4"/>
+                                <path d="M12 9V15M9 15L6 16M15 15L18 16" stroke="currentColor" stroke-width="1"/>
+                            </svg>
+                        </div>
+                        <div class="shape-name">Neural</div>
+                    </div>
+                    <div class="shape-item" onclick="selectShape(this, 'gan')">
+                        <div class="shape-icon">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                                <path d="M14 2L20 8V20A2 2 0 0118 22H6A2 2 0 014 20V4A2 2 0 016 2H14Z" stroke="currentColor" stroke-width="2" fill="currentColor" opacity="0.2"/>
+                                <path d="M14 2V8H20" stroke="currentColor" stroke-width="2"/>
+                                <circle cx="10" cy="13" r="2" stroke="currentColor" stroke-width="1.5" fill="currentColor" opacity="0.3"/>
+                                <circle cx="14" cy="16" r="1.5" stroke="currentColor" stroke-width="1.5" fill="currentColor" opacity="0.3"/>
+                            </svg>
+                        </div>
+                        <div class="shape-name">GAN</div>
+                    </div>
+                    <div class="shape-item" onclick="selectShape(this, 'tensorflow')">
+                        <div class="shape-icon">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                                <rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2" fill="currentColor" opacity="0.2"/>
+                                <rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2" fill="currentColor" opacity="0.3"/>
+                                <rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2" fill="currentColor" opacity="0.3"/>
+                                <rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2" fill="currentColor" opacity="0.4"/>
+                            </svg>
+                        </div>
+                        <div class="shape-name">TensorFlow</div>
+                    </div>
+                </div>
+
+                <div class="controls-section">
+                    <div class="control-group">
+                        <button class="control-btn active" onclick="toggleControl(this)">⚙️ Configure</button>
+                        <button class="control-btn" onclick="toggleControl(this)">📊 High Quality</button>
+                    </div>
+                    <div class="control-group">
+                        <button class="control-btn" onclick="toggleControl(this)">✨ Auto Generate</button>
+                    </div>
+                    <div class="control-group">
+                        <button class="control-btn" onclick="toggleControl(this)">🔄 Process</button>
+                        <button class="control-btn" onclick="toggleControl(this)">📐 Geometry</button>
+                        <button class="control-btn" onclick="toggleControl(this)">⚡ Render</button>
+                    </div>
+                    <div class="control-group">
+                        <button class="control-btn" onclick="toggleControl(this)">🎯 Precision</button>
+                        <button class="control-btn active" onclick="toggleControl(this)">🔐 Secure</button>
+                    </div>
+                </div>
+
+                <div class="tags-section">
+                    <span class="tag">Neural Networks</span>
+                    <span class="tag">3D Generation</span>
+                    <span class="tag">TensorFlow</span>
+                    <span class="tag">GAN Architecture</span>
+                    <span class="tag">Real-time</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="toast" class="toast"></div>
+    </div>
+
+    <script>
+        function createParticles() {
+            const container = document.getElementById('particles');
+            const particleCount = 80;
+
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.top = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 12 + 's';
+                particle.style.animationDuration = (8 + Math.random() * 6) + 's';
+                container.appendChild(particle);
+            }
+        }
+
+        function highlightMenu(element) {
+            document.querySelectorAll('.nav-menu li').forEach(item => {
+                item.classList.remove('active');
+            });
+            element.classList.add('active');
+            showToast(`Navigated to ${element.textContent}`);
+        }
+
+        function setActiveToolbar(element) {
+            document.querySelectorAll('.toolbar-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            element.classList.add('active');
+            showToast('Tool activated');
+        }
+
+        function handleDropdownChange(select) {
+            showToast(`Mode changed to: ${select.value}`);
+            select.style.background = 'rgba(0, 212, 255, 0.2)';
+            setTimeout(() => {
+                select.style.background = 'rgba(10, 10, 26, 0.8)';
+            }, 500);
+        }
+
+        function selectModel(element, modelName) {
+            document.querySelectorAll('.model-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            element.classList.add('selected');
+            showToast(`Model selected: ${modelName}`);
+            
+            // Enhanced selection animation
+            element.style.transform = 'translateY(-12px) scale(1.08)';
+            setTimeout(() => {
+                element.style.transform = 'translateY(-10px) scale(1.03)';
+            }, 300);
+        }
+
+        function selectShape(element, shapeName) {
+            document.querySelectorAll('.shape-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            element.classList.add('selected');
+            showToast(`Shape selected: ${shapeName}`);
+            changeCubeStyle(shapeName);
+        }
+
+        function changeCubeStyle(style) {
+            const cubeScene = document.querySelector('.cube-scene');
+            cubeScene.style.transform = 'scale(0.85)';
+            cubeScene.style.opacity = '0.3';
+
+            setTimeout(() => {
+                switch(style) {
+                    case 'wireframe':
+                        document.querySelectorAll('.gradient-face').forEach(face => {
+                            face.style.opacity = '0';
+                        });
+                        document.querySelectorAll('.wireframe-face').forEach(face => {
+                            face.style.borderColor = '#00d4ff';
+                            face.style.borderWidth = '4px';
+                            face.style.boxShadow = '0 0 30px rgba(0, 212, 255, 0.8), inset 0 0 20px rgba(0, 212, 255, 0.2)';
+                        });
+                        break;
+                    case 'solid':
+                        document.querySelectorAll('.gradient-face').forEach(face => {
+                            face.style.opacity = '1';
+                        });
+                        document.querySelectorAll('.wireframe-face').forEach(face => {
+                            face.style.borderWidth = '2px';
+                            face.style.borderColor = 'rgba(0, 212, 255, 0.4)';
+                            face.style.boxShadow = '0 0 20px rgba(0, 212, 255, 0.4), inset 0 0 15px rgba(0, 212, 255, 0.1)';
+                        });
+                        break;
+                    case 'textured':
+                        document.querySelectorAll('.gradient-face').forEach((face, index) => {
+                            face.style.opacity = '0.9';
+                            const colors = [
+                                'linear-gradient(135deg, #1a1a2e, #16213e)',
+                                'linear-gradient(135deg, #2a1a3e, #26214e)', 
+                                'linear-gradient(135deg, #3a2a4e, #36315e)',
+                                'linear-gradient(135deg, #4a3a5e, #46416e)',
+                                'linear-gradient(135deg, #5a4a6e, #56517e)',
+                                'linear-gradient(135deg, #6a5a7e, #66618e)'
+                            ];
+                            face.style.background = colors[index];
+                        });
+                        break;
+                    case 'neural':
+                        document.querySelectorAll('.gradient-face').forEach(face => {
+                            face.style.opacity = '0.8';
+                            face.style.background = 'linear-gradient(135deg, rgba(0, 212, 255, 0.3), rgba(168, 85, 247, 0.3))';
+                        });
+                        document.querySelectorAll('.wireframe-face').forEach(face => {
+                            face.style.borderColor = '#a855f7';
+                            face.style.boxShadow = '0 0 25px rgba(168, 85, 247, 0.6), inset 0 0 15px rgba(168, 85, 247, 0.2)';
+                        });
+                        break;
+                    case 'gan':
+                        document.querySelectorAll('.gradient-face').forEach(face => {
+                            face.style.opacity = '0.7';
+                            face.style.background = 'linear-gradient(135deg, rgba(236, 72, 153, 0.4), rgba(168, 85, 247, 0.4))';
+                        });
+                        break;
+                    case 'tensorflow':
+                        document.querySelectorAll('.gradient-face').forEach(face => {
+                            face.style.opacity = '0.9';
+                            face.style.background = 'linear-gradient(135deg, rgba(255, 165, 0, 0.4), rgba(255, 140, 0, 0.4))';
+                        });
+                        break;
+                    default:
+                        document.querySelectorAll('.gradient-face').forEach(face => {
+                            face.style.opacity = '1';
+                        });
+                        break;
+                }
+                cubeScene.style.transform = 'scale(1.1)';
+                cubeScene.style.opacity = '1';
+            }, 400);
+        }
+
+        function toggleView(element, viewType) {
+            document.querySelectorAll('.toggle-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            element.classList.add('active');
+
+            const grid = document.querySelector('.shapes-grid');
+            if (viewType === 'list') {
+                grid.style.gridTemplateColumns = '1fr';
+                showToast('List view activated');
+            } else {
+                grid.style.gridTemplateColumns = 'repeat(3, 1fr)';
+                showToast('Grid view activated');
+            }
+        }
+
+        function toggleControl(element) {
+            element.classList.toggle('active');
+            const isActive = element.classList.contains('active');
+            showToast(`${element.textContent} ${isActive ? 'enabled' : 'disabled'}`);
+            
+            // Add visual feedback
+            if (isActive) {
+                element.style.transform = 'scale(1.05)';
+                setTimeout(() => {
+                    element.style.transform = 'scale(1)';
+                }, 200);
+            }
+        }
+
+        function triggerUpload() {
+            showToast('Upload dialog opened');
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.jpg,.jpeg,.png,.bmp,.tiff,.svg,.obj,.fbx,.dae,.3ds,.blend';
+            input.multiple = true;
+
+            input.onchange = function(e) {
+                const files = Array.from(e.target.files);
+                if (files.length > 0) {
+                    showToast(`${files.length} file(s) selected for processing`);
+                    
+                    // Simulate AI processing with enhanced feedback
+                    const stages = [
+                        'Analyzing image structure...',
+                        'Extracting depth information...',
+                        'Training GAN model...',
+                        'Generating 3D vertices...',
+                        'Optimizing mesh topology...',
+                        'Applying neural textures...',
+                        'Finalizing 3D model...'
+                    ];
+                    
+                    let currentStage = 0;
+                    const interval = setInterval(() => {
+                        if (currentStage < stages.length) {
+                            showToast(stages[currentStage]);
+                            currentStage++;
+                        } else {
+                            clearInterval(interval);
+                            showToast('✨ 3D model generation completed successfully!');
+                            
+                            // Add completion animation
+                            const cubeScene = document.querySelector('.cube-scene');
+                            cubeScene.style.animation = 'none';
+                            cubeScene.style.transform = 'rotateX(-15deg) rotateY(0deg) scale(1.2)';
+                            cubeScene.style.filter = 'brightness(1.3) saturate(1.5)';
+                            
+                            setTimeout(() => {
+                                cubeScene.style.animation = 'rotate3D 25s linear infinite';
+                                cubeScene.style.filter = 'brightness(1) saturate(1)';
+                            }, 2000);
+                        }
+                    }, 1200);
+                }
+            };
+            input.click();
+        }
+
+        function togglePreview() {
+            const cubeScene = document.querySelector('.cube-scene');
+            const isPreviewMode = cubeScene.classList.contains('preview-mode');
+
+            if (isPreviewMode) {
+                cubeScene.classList.remove('preview-mode');
+                cubeScene.style.animation = 'rotate3D 25s linear infinite';
+                showToast('Interactive mode disabled - Auto rotation enabled');
+            } else {
+                cubeScene.classList.add('preview-mode');
+                cubeScene.style.animation = 'none';
+                cubeScene.style.transform = 'rotateX(-15deg) rotateY(45deg) scale(1.1)';
+                showToast('Interactive mode enabled - Drag to rotate');
+            }
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+
+            // Auto-hide after 4 seconds
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 4000);
+        }
+
+        // Enhanced mouse interaction with 3D scene
+        let isDragging = false;
+        let startX, startY;
+        let rotationX = -15, rotationY = 0;
+
+        document.querySelector('.scene-container').addEventListener('mousedown', (e) => {
+            const cubeScene = document.querySelector('.cube-scene');
+            if (cubeScene.classList.contains('preview-mode')) {
+                isDragging = true;
+                startX = e.clientX;
+                startY = e.clientY;
+                cubeScene.style.animation = 'none';
+                cubeScene.style.cursor = 'grabbing';
+            }
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                const deltaX = e.clientX - startX;
+                const deltaY = e.clientY - startY;
+
+                rotationY += deltaX * 0.8;
+                rotationX -= deltaY * 0.8;
+                rotationX = Math.max(-80, Math.min(80, rotationX));
+
+                document.querySelector('.cube-scene').style.transform =
+                    `rotateX(${rotationX}deg) rotateY(${rotationY}deg) scale(1.1)`;
+
+                startX = e.clientX;
+                startY = e.clientY;
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                const cubeScene = document.querySelector('.cube-scene');
+                cubeScene.style.cursor = 'grab';
+                
+                // Resume animation after 2 seconds of inactivity
+                setTimeout(() => {
+                    if (!isDragging && cubeScene.classList.contains('preview-mode')) {
+                        cubeScene.style.animation = 'rotate3D 25s linear infinite';
+                    }
+                }, 2000);
+            }
+        });
+
+        // Enhanced keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            switch(e.key.toLowerCase()) {
+                case ' ':
+                    e.preventDefault();
+                    togglePreview();
+                    break;
+                case 'u':
+                    if (e.ctrlKey) {
+                        e.preventDefault();
+                        triggerUpload();
+                    }
+                    break;
+                case '1':
+                    selectShape(document.querySelector('.shape-item'), 'wireframe');
+                    break;
+                case '2':
+                    selectShape(document.querySelectorAll('.shape-item')[1], 'solid');
+                    break;
+                case '3':
+                    selectShape(document.querySelectorAll('.shape-item')[2], 'textured');
+                    break;
+                case '4':
+                    selectShape(document.querySelectorAll('.shape-item')[3], 'neural');
+                    break;
+                case '5':
+                    selectShape(document.querySelectorAll('.shape-item')[4], 'gan');
+                    break;
+                case '6':
+                    selectShape(document.querySelectorAll('.shape-item')[5], 'tensorflow');
+                    break;
+                case 'r':
+                    if (e.ctrlKey) {
+                        e.preventDefault();
+                        location.reload();
+                    }
+                    break;
+            }
+        });
+
+        // Performance monitoring and optimization
+        let frameCount = 0;
+        let lastTime = performance.now();
+        let fps = 0;
+
+        function updatePerformance() {
+            frameCount++;
+            const currentTime = performance.now();
+
+            if (currentTime - lastTime >= 1000) {
+                fps = Math.round((frameCount * 1000) / (currentTime - lastTime));
+                document.title = `GAN-Powered 2D-to-3D Generation (${fps} FPS)`;
+                frameCount = 0;
+                lastTime = currentTime;
+            }
+            requestAnimationFrame(updatePerformance);
+        }
+
+        // Advanced loading sequence
+        function initializeApp() {
+            showToast('🚀 Initializing TensorFlow environment...');
+            
+            setTimeout(() => {
+                showToast('⚙️ Loading GAN architecture...');
+            }, 800);
+            
+            setTimeout(() => {
+                showToast('🧠 Neural networks ready!');
+            }, 1600);
+            
+            setTimeout(() => {
+                showToast('✨ Welcome to GAN-Powered 3D Generation!');
+            }, 2400);
+
+            // Enhanced container entrance animation
+            setTimeout(() => {
+                const container = document.querySelector('.container');
+                container.style.transform = 'scale(1.03)';
+                container.style.filter = 'brightness(1.1)';
+                setTimeout(() => {
+                    container.style.transform = 'scale(1)';
+                    container.style.filter = 'brightness(1)';
+                }, 500);
+            }, 1000);
+        }
+
+        // Mouse trail effect for enhanced interactivity
+        const trail = [];
+        const trailLength = 20;
+
+        document.addEventListener('mousemove', (e) => {
+            trail.push({x: e.clientX, y: e.clientY, time: Date.now()});
+            
+            if (trail.length > trailLength) {
+                trail.shift();
+            }
+
+            // Clean up old trail points
+            trail.forEach((point, index) => {
+                if (Date.now() - point.time > 1000) {
+                    trail.splice(index, 1);
+                }
+            });
+        });
+
+        // Initialize everything when page loads
+        window.addEventListener('load', () => {
+            createParticles();
+            updatePerformance();
+            initializeApp();
+
+            // Preload animations
+            document.querySelector('.cube-scene').style.transform = 'scale(0.8)';
+            setTimeout(() => {
+                document.querySelector('.cube-scene').style.transform = 'scale(1)';
+            }, 100);
+        });
+
+        // Enhanced error handling
+        window.addEventListener('error', (e) => {
+            console.error('Application error:', e.error);
+            showToast('⚠️ System error detected - Attempting recovery...');
+        });
+
+        // Responsive touch support for mobile devices
+        let touchStartX, touchStartY;
+
+        document.querySelector('.scene-container').addEventListener('touchstart', (e) => {
+            const cubeScene = document.querySelector('.cube-scene');
+            if (cubeScene.classList.contains('preview-mode')) {
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+                cubeScene.style.animation = 'none';
+            }
+        });
+
+        document.addEventListener('touchmove', (e) => {
+            if (touchStartX !== undefined) {
+                e.preventDefault();
+                const deltaX = e.touches[0].clientX - touchStartX;
+                const deltaY = e.touches[0].clientY - touchStartY;
+
+                rotationY += deltaX * 0.5;
+                rotationX -= deltaY * 0.5;
+                rotationX = Math.max(-80, Math.min(80, rotationX));
+
+                document.querySelector('.cube-scene').style.transform =
+                    `rotateX(${rotationX}deg) rotateY(${rotationY}deg) scale(1.1)`;
+
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+            }
+        });
+
+        document.addEventListener('touchend', () => {
+            touchStartX = undefined;
+            touchStartY = undefined;
+        });
+
+        // Easter egg - Konami code
+        const konamiCode = [38, 38, 40, 40, 37, 39, 37, 39, 66, 65];
+        let konamiIndex = 0;
+
+        document.addEventListener('keydown', (e) => {
+            if (e.keyCode === konamiCode[konamiIndex]) {
+                konamiIndex++;
+                if (konamiIndex === konamiCode.length) {
+                    showToast('🎉 Easter egg activated! Enhanced neural processing enabled!');
+                    document.body.style.filter = 'hue-rotate(180deg)';
+                    setTimeout(() => {
+                        document.body.style.filter = 'none';
+                    }, 3000);
+                    konamiIndex = 0;
+                }
+            } else {
+                konamiIndex = 0;
+            }
+        });
+    </script>
+</body>
+</html>
